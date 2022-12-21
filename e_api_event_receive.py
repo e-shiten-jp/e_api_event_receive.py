@@ -336,9 +336,6 @@ def func_login(int_p_no, my_url, str_userid, str_passwd, class_cust_property):
     #         "sCLMID":"CLMAuthLoginRequest"
     # }
 
-
-
-
     if int_p_errno ==  0 and int_sResultCode == 0:    # ログインエラーでない場合
         # ---------------------------------------------
         # ログインでの注意点
@@ -490,8 +487,7 @@ def func_make_event_url(int_p_gyou_no, str_sIssueCode, str_sSizyouC, class_cust_
     str_url = ''
     str_url = str_url + class_cust_property.sUrlEvent
     str_url = str_url + '?'
-##    str_url = str_url + 'p_evt_cmd=ST,KP,EC,SS,US,FD'
-    str_url = str_url + 'p_evt_cmd=ST,KP,EC,SS,US'
+    str_url = str_url + 'p_evt_cmd=ST,KP,EC,SS,US,FD'
     str_url = str_url + '&' + 'p_eno=0'     # 配信開始したいイベント通知番号(ユニーク番号)、指定番号の次から送信する(0なら全て)。
     str_url = str_url + '&' + 'p_rid=22'    # 固定値
     str_url = str_url + '&' + 'p_board_no=1000'    # 固定値
@@ -532,7 +528,6 @@ def func_event_receive(str_url, int_work_minutes):
     time_start = datetime.datetime.now()    # 開始時刻計測
     time_end = time_start + datetime.timedelta(minutes= int_work_minutes )  # 'minutes=10'を変更すれば時間を変更できる。
     
-
     # APIに接続
     http = urllib3.PoolManager()
 
@@ -576,12 +571,6 @@ def func_event_receive(str_url, int_work_minutes):
             break
 
     resp.release_conn()
-
-
-
-
-
-
 
 
 
