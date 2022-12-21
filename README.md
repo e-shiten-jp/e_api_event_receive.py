@@ -1,5 +1,5 @@
 # e_api_event_receive.py
-ｅ支店APIで、Event I/F を使い時価などのプッシュ情報を受信する。
+ｅ支店APIで、Event I/F を使い、約定や株価の変動等のプッシュ通知を受信する。
 
 ファイル名: e_api_event_receive.py
 
