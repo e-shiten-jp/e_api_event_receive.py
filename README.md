@@ -1,4 +1,4 @@
-# e_api_event_receive.py
+# e_api_event_receive_tel.py
 電話認証対応　Event I/F を使い、約定や株価の変動等のプッシュ通知をリアルタイムに受信する。
 
 ご注意！！ ================================
