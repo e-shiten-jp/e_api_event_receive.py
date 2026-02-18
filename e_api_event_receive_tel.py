@@ -521,7 +521,7 @@ def func_save_p_no(str_fname_output, int_p_no):
 # ※区切り子「^A」は1項目値、「^B」は項目と値、「^C」は値と値の各区切り。
 #
 # 「型_行番号_情報コード」で、情報コードで示す値を設定する。
-# 例、b'p_1_DPP^B3757' の場合、「p_1_DPP」は、p:プレーン文字列_1:行番号_DPP:現在値
+# 例、b'p_1_DPP^B3757' の場合、「p_1_DPP」は、p:プレーン文字列、_1:行番号、_DPP:現在値
 #
 def func_punctuate_message(chunk):
     dict_message = {}
@@ -541,7 +541,7 @@ def func_punctuate_message(chunk):
             # 値区切り文字'^C'が来た場合、','に置き換え（置き換え文字は任意）。
             elif chunk[i:i+1] == '\x03' :
                 str_message = str_message + ','
-                chunk_ctrl = chunk_ctrl + '^C'      
+                chunk_ctrl = chunk_ctrl + '^C'
             else :                        
                 str_message = str_message + chunk[i:i+1]
                 chunk_ctrl = chunk_ctrl + chunk[i:i+1]
@@ -707,5 +707,9 @@ if __name__ == "__main__":
     my_url = func_make_event_url(my_p_gyou_no, my_sIssueCode, my_sSizyouC, my_login_property)
     
     # eventでのプッシュ情報の受信
-    func_event_receive(my_url)
-    
+    try:
+        func_event_receive(my_url)
+    except	KeyboardInterrupt:
+        print	("info, Ctrl^C interrupt.")
+    except	Exception as p_exception:
+        print   (f'error, exception catched:[{p_exception}]')
