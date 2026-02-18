@@ -4,8 +4,9 @@
 # 2022.04.12, yo.
 
 # 2021.07.08,   yo.
-# 2023.04.11 reviced,   yo.
-# 2025.08.09 reviced,   yo.
+# 2023.04.11 reviced, yo.
+# 2025.08.09 reviced, yo.
+# 2026.02.18 reviced, yo.
 #
 # 立花証券ｅ支店ＡＰＩ利用のサンプルコード
 #
@@ -44,7 +45,7 @@
 # 事前に「e_api_login_tel.py」を実行して、
 # 仮想URL（1日券）等を取得しておいてください。
 # 「e_api_login_tel.py」と同じディレクトリで実行してください。
-#
+# 停止は、ctrl+Cを押してください。
 #
 #
 # 参考資料（必ず最新の資料を参照してください。）--------------------------
@@ -498,6 +499,67 @@ def func_save_p_no(str_fname_output, int_p_no):
 # 8 US 運用ステータス配信指定      初回は当日営業日内の通知削除機能で削除していない全通知を接続毎に再送、以降は発生時通知
 
 
+# 機能： 受信データを区切り文字で分割し辞書型で返す。
+# 引数1：str_url string
+# 返値： 辞書型データ
+# 備考:
+# 受信データは、
+#       websocket: string型
+#       event: byte型
+ 
+# 仕様の解説は、API専用ページ
+# ５．マニュアル、
+# １．共通説明
+# （５）注文約定通知（仮想ＵＲＬ（EVENT））
+# 別紙「立花証券・ｅ支店・ＡＰＩ、EVENT I/F 利用方法、データ仕様」参照。
+# (api_event_if.xlsx)
+# 3. 通知データ仕様 p4/26
+# 通知データは「^A」「^B」「^C」を区切り子とし文字列の羅列で送信する。
+# 通知データ中の値として「^A^B^C」は使わない。
+# 項目A1=値B1;項目A2=値B21,B22,B23;・・・を送信する場合、
+# 項目A1^B値B1^A項目A2^B値B21^CB22^CB23^A・・・と送信する。
+# ※区切り子「^A」は1項目値、「^B」は項目と値、「^C」は値と値の各区切り。
+#
+# 「型_行番号_情報コード」で、情報コードで示す値を設定する。
+# 例、b'p_1_DPP^B3757' の場合、「p_1_DPP」は、p:プレーン文字列_1:行番号_DPP:現在値
+#
+def func_punctuate_message(chunk):
+    dict_message = {}
+    str_message = ''
+    flg_p_date = False      # 取得した情報がp_dateの場合、Trueに設定し時刻を取得する。
+    flg_end = False         # p_dateが指定時間を超えたら、Trueに設定し終了する。
+    
+    chunk_ctrl = ""         # 元電文で制御コードとなっている区切子^A,^B,^Cを文字列"^A","^B","^C"に置き換えた電文を格納する。
+
+    for i in range(len(chunk)):
+        if chunk[i:i+1] != '\x01' and chunk[i:i+1] != '\n' :
+            # 項目と値の区切り'^B'が来た場合、':'に置き換え（置き換え文字は任意）。
+            if chunk[i:i+1] == '\x02' :
+                str_key = str_message
+                str_message = ''
+                chunk_ctrl = chunk_ctrl + '^B'
+            # 値区切り文字'^C'が来た場合、','に置き換え（置き換え文字は任意）。
+            elif chunk[i:i+1] == '\x03' :
+                str_message = str_message + ','
+                chunk_ctrl = chunk_ctrl + '^C'      
+            else :                        
+                str_message = str_message + chunk[i:i+1]
+                chunk_ctrl = chunk_ctrl + chunk[i:i+1]
+
+        # 項目区切り'^A'と改行が来た場合
+        else:   # if chunk[i:i+1] == '\x01' or chunk[i:i+1] == '\n' :
+            dict_message[str_key] = str_message
+            str_message = ''
+            if chunk[i:i+1] == '\x01' :
+                chunk_ctrl = chunk_ctrl + '^A'
+            if chunk[i:i+1] == '\n' :
+                chunk_ctrl = chunk_ctrl + '\n'
+    
+    print("受信電文　区切子^A^B^Cは非表示：")
+    print(chunk)
+    print('区切子^A^B^Cを文字列"^A","^B","^C"に置換：')
+    print(chunk_ctrl)
+    return dict_message
 
 
 # 機能： event用のurlを作成する。
@@ -511,8 +573,8 @@ def func_make_event_url(str_p_gyou_no, str_sIssueCode, str_sSizyouC, class_login
     str_url = ''
     str_url = str_url + class_login_property.sUrlEvent
     str_url = str_url + '?'
-    str_url = str_url + 'p_evt_cmd=ST,KP,FD'
-##    str_url = str_url + 'p_evt_cmd=ST,KP,EC,SS,US,FD'
+#    str_url = str_url + 'p_evt_cmd=ST,KP,FD'
+    str_url = str_url + 'p_evt_cmd=ST,KP,EC,SS,US,FD'
     str_url = str_url + '&' + 'p_eno=0'     # 配信開始したいイベント通知番号(ユニーク番号)、指定番号の次から送信する(0なら全て)。
     str_url = str_url + '&' + 'p_rid=22'    # 固定値
     str_url = str_url + '&' + 'p_board_no=1000'    # 固定値
@@ -545,16 +607,12 @@ def func_make_event_url(str_p_gyou_no, str_sIssueCode, str_sSizyouC, class_login
 # ※区切り子「^A」は1項目値、「^B」は項目と値、「^C」は値と値の各区切り。
 #
 # 「型_行番号_情報コード」で、情報コードで示す値を設定する。
-# 例、b'p_1_DPP^B3757' の場合、「p_1_DPP」は、p:プレーン文字列_1:行番号_DPP:現在値
+# 例、b'p_1_DPP^B3757' の場合、「p_1_DPP」は、p:プレーン文字列、_1:行番号、_DPP:現在値
 #
-def func_event_receive(str_url, int_work_minutes):
-
+def func_event_receive(str_url):
     byte_text = b''
     flg_p_date = False      # 取得した情報がp_dateの場合、Trueに設定し時刻を取得する。
     flg_end = False         # p_dateが指定時間を超えたら、Trueに設定し終了する。
-    time_start = datetime.datetime.now()    # 開始時刻計測
-    time_end = time_start + datetime.timedelta(minutes= int_work_minutes )  # 'minutes=10'を変更すれば時間を変更できる。
-    
 
     # APIに接続
     http = urllib3.PoolManager()
@@ -565,48 +623,22 @@ def func_event_receive(str_url, int_work_minutes):
         str_url,
         preload_content=False)
     
-    for chunk in resp.stream(1024):
-        for i in range(len(chunk)):
-            # 項目区切り'^A'と改行が来た場合
-            if chunk[i:i+1] == b'\x01' or chunk[i:i+1] == b'\n' :
-                print(byte_text)
-
-                # 仮想URLが無効の場合
-                if byte_text == b'p_errno:2' :
-                    print()
-                    print(str(byte_text))
-                    print("仮想URLが有効ではありません。")
-                    print("電話認証 + e_api_login_tel.py実行")
-                    print("を再度行い、新しく仮想URL（1日券）を取得してください。")
-                    print()
-
-                # 停止判定
-                if flg_p_date == True :
-                    str_p_date = str(byte_text[7:], 'shift-jis')       # b'p_date:2022.12.20-11:20:34.200'
-                    time_now = datetime.datetime.strptime(str_p_date, '%Y.%m.%d-%H:%M:%S.%f')
-                    # print('経過時間:', time_now - time_start)
-                    flg_p_date = False
-                    # 停止時間経過で停止フラグをTrueに変更。
-                    if time_now > time_end :
-                        flg_end = True
-                    
-                byte_text = b''
-            else :
-                # 項目と値の区切り'^B'が来た場合、':'に置き換え（置き換え文字は任意）。
-                if chunk[i:i+1] == b'\x02' :
-                    byte_text = byte_text + b':'
-                    if byte_text == b'p_date:' :
-                        flg_p_date = True
-                    
-                # 値区切り文字'^C'が来た場合、','に置き換え（置き換え文字は任意）。
-                elif chunk[i:i+1] == b'\x03' :
-                    byte_text = byte_text + b','
-                else :                        
-                    byte_text = byte_text + chunk[i:i+1]
-        if flg_end == True :
-            print(str(int_work_minutes) + '分経過で終了')
-            break
-
+    for byte_chunk in resp.stream(2048):
+        str_chunk = byte_chunk.decode()
+        print()
+        print('---------------')
+        dict_my_message = func_punctuate_message(str_chunk)
+        
+        for key, value in dict_my_message.items():
+            print(key, ': ', value)
+            if key == 'p_errno' and value == '2' :
+                print()
+                print(key, ': ', value)
+                print("仮想URLが有効ではありません。")
+                print("電話認証 + e_api_login_tel.py実行")
+                print("を再度行い、新しく仮想URL（1日券）を取得してください。")
+                print()
+    
     resp.release_conn()
 
 
@@ -615,35 +647,32 @@ def func_event_receive(str_url, int_work_minutes):
 # ======================================================================================================
 # ==== プログラム始点 =================================================================================
 # ======================================================================================================
-
 # 必要な設定項目
 # 行番号: my_p_gyou_no  （1-120の整数）
 # 銘柄コード: my_sIssueCode （通常銘柄は4桁、優先株等は5桁。例、伊藤園'2593'、伊藤園優先株'25935'）
 # 市場: my_sSizyouC （00:東証   現在(2021/07/01)、東証のみ可能。）
-# 稼働時間: my_work_minutes
+
 
 if __name__ == "__main__":
 
     # --- 利用時に変数を設定してください -------------------------------------------------------
     # コマンド用パラメーター -------------------    
-    # 仕様では120銘柄まで指定できますが、負荷が高くなるため、サンプルコードでは1銘柄のみを指定。
+    # 仕様では120銘柄まで指定できますが、負荷が高くなるため、サンプルコードでは1 - 3銘柄を用意。
 
     # 1銘柄で取得の場合のサンプル
-    my_p_gyou_no = '1'        # 行を指定する。string型。1-120の整数で、銘柄毎に違う行を指定する。時価取得時の銘柄の識別番号。
-    my_sIssueCode = '1234'  # 2.銘柄コード。string型。通常銘柄、4桁。優先株等、5桁。例、伊藤園'2593'、伊藤園優先株'25935'
-    my_sSizyouC = '00'      # 3.市場。string型。  00:東証   現在(2021/07/01)、東証のみ可能。
-    
+    #my_p_gyou_no = '1'        # 行を指定する。string型。1-120の整数で、銘柄毎に違う行を指定する。時価取得時の銘柄の識別番号。
+    #my_sIssueCode = '1234'  # 2.銘柄コード。string型。通常銘柄、4桁。優先株等、5桁。例、伊藤園'2593'、伊藤園優先株'25935'
+    #my_sSizyouC = '00'      # 3.市場。string型。  00:東証   現在(2021/07/01)、東証のみ可能。
+ 
     # 2銘柄で取得の場合のサンプル
-    ##my_p_gyou_no = '1,2'        # 行を指定する。string型。1-120の整数で、銘柄毎に違う行を指定する。時価取得時の銘柄の識別番号。
-    ##my_sIssueCode = '1301,1332'  # 2.銘柄コード。通常銘柄、4桁。優先株等、5桁。例、伊藤園'2593'、伊藤園優先株'25935'
-    ##my_sSizyouC = '00,00'      # 3.市場。  00:東証   現在(2021/07/01)、東証のみ可能。
+    my_p_gyou_no = '1,2'        # 行を指定する。string型。1-120の整数で、銘柄毎に違う行を指定する。時価取得時の銘柄の識別番号。
+    my_sIssueCode = '6501,9432'  # 2.銘柄コード。通常銘柄、4桁。優先株等、5桁。例、伊藤園'2593'、伊藤園優先株'25935'
+    my_sSizyouC = '00,00'      # 3.市場。  00:東証   現在(2021/07/01)、東証のみ可能。
 
     # 3銘柄で取得の場合のサンプル
     ##my_p_gyou_no = '1,2,3'        # 行を指定する。string型。1-120の整数で、銘柄毎に違う行を指定する。時価取得時の銘柄の識別番号。
     ##my_sIssueCode = '1301,1332,1333'  # 2.銘柄コード。通常銘柄、4桁。優先株等、5桁。例、伊藤園'2593'、伊藤園優先株'25935'
     ##my_sSizyouC = '00,00,00'      # 3.市場。  00:東証   現在(2021/07/01)、東証のみ可能。
-
-    my_work_minutes = 2     # 時価を取得する時間を分単位で指定。 
 
     # --- 以上設定項目 -------------------------------------------------------------------------
 
@@ -678,5 +707,5 @@ if __name__ == "__main__":
     my_url = func_make_event_url(my_p_gyou_no, my_sIssueCode, my_sSizyouC, my_login_property)
     
     # eventでのプッシュ情報の受信
-    func_event_receive(my_url, my_work_minutes)
+    func_event_receive(my_url)
     
