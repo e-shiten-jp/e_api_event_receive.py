@@ -591,7 +591,6 @@ def func_make_event_url(str_p_gyou_no, str_sIssueCode, str_sSizyouC, class_login
 
 # 機能： event用のhttpアクセスを行い、プッシュされた情報を標準出力に出力する。
 # 引数1：str_url string
-# 引数2：int_work_minutes 数値型。動作を終了する分数を指定。
 # 返値： 無し
 # 備考:
 # 仕様の解説は、API専用ページ
