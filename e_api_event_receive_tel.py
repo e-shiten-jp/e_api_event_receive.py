@@ -553,12 +553,13 @@ def func_punctuate_message(chunk):
             if chunk[i:i+1] == '\x01' :
                 chunk_ctrl = chunk_ctrl + '^A'
             if chunk[i:i+1] == '\n' :
-                chunk_ctrl = chunk_ctrl + '\n'
+                chunk_ctrl = chunk_ctrl + '\\n'
     
     print("受信電文　区切子^A^B^Cは非表示：")
     print(chunk)
-    print('区切子^A^B^Cを文字列"^A","^B","^C"に置換：')
+    print("区切子^A^B^Cを文字列'^A','^B','^C'に置換。改行\\nを文字列'\\n'に置換。：")
     print(chunk_ctrl)
+    print()
     return dict_message
 
 
@@ -613,6 +614,7 @@ def func_event_receive(str_url):
     byte_text = b''
     flg_p_date = False      # 取得した情報がp_dateの場合、Trueに設定し時刻を取得する。
     flg_end = False         # p_dateが指定時間を超えたら、Trueに設定し終了する。
+    str_chunk_accum = ''
 
     # APIに接続
     http = urllib3.PoolManager()
@@ -625,19 +627,24 @@ def func_event_receive(str_url):
     
     for byte_chunk in resp.stream(2048):
         str_chunk = byte_chunk.decode()
-        print()
-        print('---------------')
-        dict_my_message = func_punctuate_message(str_chunk)
-        
-        for key, value in dict_my_message.items():
-            print(key, ': ', value)
-            if key == 'p_errno' and value == '2' :
-                print()
+        # dict_my_message = func_punctuate_message(str_chunk)
+        str_chunk_accum = str_chunk_accum + str_chunk
+        if str_chunk_accum[-1:] ==  '\x01' or str_chunk_accum[-1:] ==  '\n' :
+            print()
+            print('---------------')
+            dict_my_message = func_punctuate_message(str_chunk_accum)
+            str_chunk_accum = ''
+
+
+            for key, value in dict_my_message.items():
                 print(key, ': ', value)
-                print("仮想URLが有効ではありません。")
-                print("電話認証 + e_api_login_tel.py実行")
-                print("を再度行い、新しく仮想URL（1日券）を取得してください。")
-                print()
+                if key == 'p_errno' and value == '2' :
+                    print()
+                    print(key, ': ', value)
+                    print("仮想URLが有効ではありません。")
+                    print("電話認証 + e_api_login_tel.py実行")
+                    print("を再度行い、新しく仮想URL（1日券）を取得してください。")
+                    print()
     
     resp.release_conn()
 
